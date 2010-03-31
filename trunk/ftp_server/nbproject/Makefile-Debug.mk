@@ -31,6 +31,9 @@ OBJECTDIR=build/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/FTPCommand.o \
+	${OBJECTDIR}/FTPServer.o \
+	${OBJECTDIR}/FTPProcess.o \
 	${OBJECTDIR}/main.o
 
 # C Compiler Flags
@@ -56,6 +59,21 @@ LDLIBSOPTIONS=
 dist/Debug/GNU-Linux-x86/ftp_server: ${OBJECTFILES}
 	${MKDIR} -p dist/Debug/GNU-Linux-x86
 	${LINK.cc} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/ftp_server ${OBJECTFILES} ${LDLIBSOPTIONS} 
+
+${OBJECTDIR}/FTPCommand.o: nbproject/Makefile-${CND_CONF}.mk FTPCommand.cpp 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.cc) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/FTPCommand.o FTPCommand.cpp
+
+${OBJECTDIR}/FTPServer.o: nbproject/Makefile-${CND_CONF}.mk FTPServer.cpp 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.cc) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/FTPServer.o FTPServer.cpp
+
+${OBJECTDIR}/FTPProcess.o: nbproject/Makefile-${CND_CONF}.mk FTPProcess.cpp 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.cc) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/FTPProcess.o FTPProcess.cpp
 
 ${OBJECTDIR}/main.o: nbproject/Makefile-${CND_CONF}.mk main.cpp 
 	${MKDIR} -p ${OBJECTDIR}
