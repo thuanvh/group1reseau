@@ -5,7 +5,6 @@
                    displayName="Header Files"
                    projectFiles="true">
       <itemPath>FTPCommand.h</itemPath>
-      <itemPath>FTPProcess.h</itemPath>
       <itemPath>FTPServer.h</itemPath>
       <itemPath>common.h</itemPath>
     </logicalFolder>
@@ -17,7 +16,6 @@
                    displayName="Source Files"
                    projectFiles="true">
       <itemPath>FTPCommand.cpp</itemPath>
-      <itemPath>FTPProcess.cpp</itemPath>
       <itemPath>FTPServer.cpp</itemPath>
       <itemPath>main.cpp</itemPath>
     </logicalFolder>
@@ -40,6 +38,7 @@
         <linkerTool>
           <linkerLibItems>
           </linkerLibItems>
+          <commandLine>-lpthread</commandLine>
         </linkerTool>
       </compileType>
     </conf>

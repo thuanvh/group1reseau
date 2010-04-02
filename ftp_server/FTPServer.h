@@ -14,17 +14,18 @@ class FTPServer {
 public:
     FTPServer();
     virtual ~FTPServer();
-    void start();
+    int start();
     void setHome(string home);
     string getHome() const;
     void setPort(int port);
     int getPort() const;
-
+    
 private:
     int port;
-    string home;
+    static string home;
 
     int listenning(struct sockaddr_in *name);
+    static void* handle(void* parametres);
 };
 
 #endif	/* _FTPSERVER_H */
