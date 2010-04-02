@@ -6,6 +6,8 @@
  */
 
 #include "FTPServer.h"
+#include "FTPCommand.h"
+#include "FTPProcess.h"
 
 FTPServer::FTPServer() {
     port = 0;
@@ -31,14 +33,205 @@ int FTPServer::getPort() const {
 FTPServer::~FTPServer() {
 }
 
-void FTPServer::start() {
+void* FTPServer::handle(void* parametres) {
+    THREAD_DATA input;
 
+    memcpy(&input, parametres, sizeof (input));
+
+    int socket_id,
+            data_id, /*  Socket ID for the data conneciton  */
+            port_number = 0, /*  The port number for the data conn  */
+            host_id = 0, /*  The host address for the connect.  */
+            login = NO, /*  If the user is loged in yet or not */
+            user_entered = NO; /*  If the USER command has been used  */
+    char data[BUFFER]; /*  Buffer for the command from client */
+    CommandType command; /*  Form of command based on word_1    */
+    FTPCommand cmd;
+    vector<string> msgs;
+    string username;
+    string password;
+    FTPProcess pro;
+
+    /*
+     *  Welcome Message
+     */
+    socket_id = input.cid;
+    cmd.setSocketID(socket_id);
+    pro.setClientID(socket_id);
+    pro.setDir(home);
+
+    send(socket_id, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE), 0);
+
+    /*
+     *  There is only one account possible for this program, and that is
+     *  the 'ftp' user name.  Keep looping until it is entered properly,
+     *  so that the client is logged in.  Any password that is greater than
+     *  one character will be accepted.
+     */
+
+    do {
+        cmd.getCommandName(msgs);
+        command = cmd.getCommandType(msgs[0]);
+
+        /*
+         *  This switch statement cycles until the user either logs in
+         *  properly via a USER, and a PASS statement, or they opt to
+         *  QUIT.  Once a correct password has been entered, or they
+         *  choose to quit, continue into the next, and primary loop.
+         */
+
+        switch (command) {
+            case USER:
+                username.assign(msgs[1]);
+                send(socket_id, USERNAME_MESSAGE, strlen(USERNAME_MESSAGE), 0);
+                user_entered = YES;
+                break;
+            case PASS:
+                if (user_entered == NO) {
+                    send(socket_id, USE_USER_FIRST, strlen(USE_USER_FIRST), 0);
+                } else {
+                    if (strcmp(username.c_str(), "ftp") == 0) {
+                        send(socket_id, USER_LOGGED_IN, strlen(USER_LOGGED_IN), 0);
+                        login = YES;
+                    } else {
+                        send(socket_id, PASSWORD_FAILURE, strlen(PASSWORD_FAILURE), 0);
+                        user_entered = NO;
+                    }
+                }
+                break;
+            case QUIT:
+                send(socket_id, GOODBYE, strlen(GOODBYE), 0);
+                break;
+            default:
+                send(socket_id, ERROR_MESSAGE, strlen(ERROR_MESSAGE), 0);
+        }
+
+    } while (login == NO && command != QUIT);
+
+    /*
+     *  Get a message from the client, and process it depending on the
+     *  command desired.
+     */
+
+    while (command != QUIT) {
+
+        /*
+         *  Get a command from the client to process.  At this point all of
+         *  the implemented commands are now available for the user to make
+         *  full use of.  Each of the commands calls a different function,
+         *  or replies with some information message.  For those commands
+         *  that require a data conneciton, the conneciton is made before
+         *  calling other routines, and then the socket number is passed
+         *  instead (NLST, RECV, STOR, are the only three that need to do
+         *  this.)
+         */
+
+        cmd.getCommandName(msgs);
+        command = cmd.getCommandType(msgs[0]);
+
+        switch (command) {
+            case TYPE:
+                send(socket_id, TYPE_RESPONSE, strlen(TYPE_RESPONSE), 0);
+                break;
+            case MODE:
+                send(socket_id, MODE_RESPONSE, strlen(MODE_RESPONSE), 0);
+                break;
+            case NLST:
+                if (pro.createConnection() == -1) {
+                    send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
+                } else {
+                    sprintf(username, "%s (%u,%u).\r\n",
+                            READY_FOR_NLST, host_id, port_number);
+                    send(socket_id, username, strlen(username), 0);
+                    pro.cmdNLST(msgs[1]);
+                    send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
+                    printf("Closing data conneciton.\n");
+                    pro.closeConnection();
+                }
+                break;
+            case RETR:
+                if (pro.createConnection() == -1) {
+                    send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
+                } else {
+                    sprintf(username, "%s (%u,%u).\r\n",
+                            READY_FOR_TRANSFER, host_id, port_number);
+                    send(socket_id, username, strlen(username), 0);
+                    if (pro.cmdRETR(msgs[1]) == 1) {
+                        send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
+                    } else {
+                        send(socket_id, NO_SUCH_FILE, strlen(NO_SUCH_FILE), 0);
+                    }
+                    printf("Closing data conneciton.\n");
+                    pro.closeConnection();
+                }
+                break;
+            case NOOP:
+                send(socket_id, NOOP_RESPONSE, strlen(NOOP_RESPONSE), 0);
+                return;
+            case STOR:
+                if (pro.createConnection() == -1) {
+                    send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
+                } else {
+                    sprintf(username, "%s (%u,%u).\r\n",
+                            READY_FOR_TRANSFER, host_id, port_number);
+                    send(socket_id, username, strlen(username), 0);
+                    if (pro.cmdSTOR(msgs[1]) == 1) {
+                        send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
+                    } else {
+                        send(socket_id, CANNOT_CREATE_FILE, strlen(CANNOT_CREATE_FILE), 0);
+                    }
+                    printf("Closing data conneciton.\n");
+                    pro.closeConnection();
+                }
+                break;
+            case QUIT:
+                send(socket_id, GOODBYE, strlen(GOODBYE), 0);
+                break;
+            case PWD:
+                pro.cmdPWD();
+                break;
+            case CWD:
+                pro.cmdCWD(msgs[1]);
+                break;
+            case PORT:
+                pro.setInfo(msgs[1]);
+                break;
+            default:
+                send(socket_id, ERROR_MESSAGE, strlen(ERROR_MESSAGE), 0);
+        }
+    }
+}
+
+int FTPServer::start() {
+    int sid, cid;
+    sockaddr_in ss, sc;
+    unsigned int length;
+    pthread_t tid;
+    THREAD_DATA data;
+
+    memset(&ss, 0x00, sizeof (ss));
+    sid = listenning(&ss);
+    if (sid == -1) {
+        cout << "Error on listenning";
+        return -1;
+    }
+
+    // main loop
+    while (1) {
+        length = sizeof (sc);
+        cid = accept(sid, (sockaddr*) & sc, &length);
+        if (cid > 0) {
+            // traiter la requete de client ici
+            data.cid = cid;
+            pthread_create(&tid, NULL, &handle, &data);
+        }
+    }
 }
 
 int FTPServer::listenning(sockaddr_in* name) {
     int data_id, /*  Socket Number of Data Socket */
-        host_id, /*  Information about local sys. */
-        errorlevel; /*  General purpose return codes */
+            host_id, /*  Information about local sys. */
+            errorlevel; /*  General purpose return codes */
     char port_name[BUFFER]; /*  Name of the local machine    */
     hostent *host_data; /*  Container struct host info   */
 
@@ -86,7 +279,7 @@ int FTPServer::listenning(sockaddr_in* name) {
          *  is set to the default BUFFER size.
          */
 
-        errorlevel = listen(data_id, BUFFER * BUFFER);
+        errorlevel = listen(data_id, MAX_CLIENT);
         if (errorlevel == -1) {
             cout << "Error: listen" << endl;
             close(data_id);

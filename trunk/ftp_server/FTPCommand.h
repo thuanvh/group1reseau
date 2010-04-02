@@ -15,7 +15,12 @@ public:
     FTPCommand();
     virtual ~FTPCommand();
     CommandType getCommandType(string name);
+    int getCommandName(vector<string> &msgs);
+    void setSocketID(int socketID);
+    int getSocketID() const;
+    
 private:
+    int socketID;
 
 };
 

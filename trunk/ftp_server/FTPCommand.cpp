@@ -9,8 +9,39 @@
 
 FTPCommand::FTPCommand() {
 }
+void FTPCommand::setSocketID(int socketID) {
+    this->socketID = socketID;
+}
+int FTPCommand::getSocketID() const {
+    return socketID;
+}
 
 FTPCommand::~FTPCommand() {
+}
+
+int FTPCommand::getCommandName(vector<string> &msgs) {
+    int  errorlevel;
+    char data[BUFFER];
+    string str;
+    size_t pos;
+
+    errorlevel = recv(socketID, data, sizeof(char) * BUFFER, NULL);
+    if (errorlevel == -1) {
+        cout << "Error: Client Recv Error";
+        return errorlevel;
+    }
+    data[errorlevel] = NULL;
+    str.assign(data);
+    pos = str.find(" ");
+    msgs.clear();
+    if (pos != string::npos) {
+        msgs.push_back(str.substr(0, pos));
+        msgs.push_back(str.substr(pos+1));
+    } else {
+        msgs.push_back(str);
+    }
+
+    return errorlevel;
 }
 
 CommandType FTPCommand::getCommandType(string name) {
