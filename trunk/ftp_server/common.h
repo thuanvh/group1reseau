@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <time.h>
 
 using namespace std;
 
@@ -53,6 +54,7 @@ using namespace std;
 #define USE_USER_FIRST          "503 Login with USER First.\r\n"
 #define NO_SUCH_FILE            "550 No such file or location.\r\n"
 #define CANNOT_CREATE_FILE      "550 Cannot create file.\r\n"
+#define PASSIVE_MODE            "227 Entering Passive Mode %s.\r\n"
 
 /*  Des commandes FTP supportees par ce serveur.     */
 enum _CommandType { ERROR, TYPE, MODE, NLST, RETR, NOOP, STOR,
@@ -61,6 +63,7 @@ typedef enum _CommandType CommandType;
 
 typedef struct _thread_data {
     int cid;
+    in_addr_t host;
 } THREAD_DATA, *PTHREAD_DATA;
 
 #endif	/* _COMMON_H */

@@ -23,6 +23,7 @@ public:
 private:
     int port;
     static string home;
+    in_addr_t host;
 
     int listenning(struct sockaddr_in *name);
     static void* handle(void* parametres);
