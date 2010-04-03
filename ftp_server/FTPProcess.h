@@ -27,10 +27,14 @@ public:
     void setClientID(int clientID);
     void setDir(string dir);
     string getDir() const;
+    int cmdPASV(in_addr_t host);
+    bool isAscii() const;
+    bool isPasv() const;
 
 private:
     int clientID, port, sid;
-    in_addr_t host;
+    bool pasv, ascii;
+    in_addr_t client;
     string dir;
 };
 

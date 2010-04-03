@@ -139,55 +139,61 @@ void* FTPServer::handle(void* parametres) {
                 send(socket_id, MODE_RESPONSE, strlen(MODE_RESPONSE), 0);
                 break;
             case NLST:
-                if (pro.createConnection() == -1) {
-                    send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
-                } else {
-                    memset(data, 0x00, sizeof(data));
-                    sprintf(data, "%s.\r\n",
-                            READY_FOR_NLST);
-                    send(socket_id, data, strlen(data), 0);
-                    pro.cmdNLST(msgs[1]);
-                    send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
-                    printf("Closing data conneciton.\n");
-                    pro.closeConnection();
+                if (!pro.isPasv()) {
+                    if (pro.createConnection() == -1) {
+                        send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
+                        break;
+                    }
                 }
+                memset(data, 0x00, sizeof(data));
+                sprintf(data, "%s.\r\n",
+                        READY_FOR_NLST);
+                send(socket_id, data, strlen(data), 0);
+                pro.cmdNLST(msgs[1]);
+                send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
+                printf("Closing data conneciton.\n");
+                pro.closeConnection();
                 break;
             case RETR:
-                if (pro.createConnection() == -1) {
-                    send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
-                } else {
-                    memset(data, 0x00, sizeof(data));
-                    sprintf(data, "%s (%u,%u).\r\n",
-                            READY_FOR_TRANSFER, host_id, port_number);
-                    send(socket_id, data, strlen(data), 0);
-                    if (pro.cmdRETR(msgs[1]) == 1) {
-                        send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
-                    } else {
-                        send(socket_id, NO_SUCH_FILE, strlen(NO_SUCH_FILE), 0);
+                if (!pro.isPasv()) {
+                    if (pro.createConnection() == -1) {
+                        send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
+                        break;
                     }
-                    printf("Closing data conneciton.\n");
-                    pro.closeConnection();
                 }
+                memset(data, 0x00, sizeof(data));
+                sprintf(data, "%s (%u,%u).\r\n",
+                        READY_FOR_TRANSFER, host_id, port_number);
+                send(socket_id, data, strlen(data), 0);
+                if (pro.cmdRETR(msgs[1]) == 1) {
+                    send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
+                } else {
+                    send(socket_id, NO_SUCH_FILE, strlen(NO_SUCH_FILE), 0);
+                }
+                printf("Closing data conneciton.\n");
+                pro.closeConnection();
                 break;
             case NOOP:
                 send(socket_id, NOOP_RESPONSE, strlen(NOOP_RESPONSE), 0);
                 return NULL;
             case STOR:
-                if (pro.createConnection() == -1) {
-                    send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
-                } else {
-                    memset(data, 0x00, sizeof(data));
-                    sprintf(data, "%s (%u,%u).\r\n",
-                            READY_FOR_TRANSFER, host_id, port_number);
-                    send(socket_id, data, strlen(data), 0);
-                    if (pro.cmdSTOR(msgs[1]) == 1) {
-                        send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
-                    } else {
-                        send(socket_id, CANNOT_CREATE_FILE, strlen(CANNOT_CREATE_FILE), 0);
+                if (!pro.isPasv()) {
+                    if (pro.createConnection() == -1) {
+                        send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
+                        break;
                     }
-                    printf("Closing data conneciton.\n");
-                    pro.closeConnection();
                 }
+                memset(data, 0x00, sizeof(data));
+                sprintf(data, "%s (%u,%u).\r\n",
+                        READY_FOR_TRANSFER, host_id, port_number);
+                send(socket_id, data, strlen(data), 0);
+                if (pro.cmdSTOR(msgs[1]) == 1) {
+                    send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
+                } else {
+                    send(socket_id, CANNOT_CREATE_FILE, strlen(CANNOT_CREATE_FILE), 0);
+                }
+                printf("Closing data conneciton.\n");
+                pro.closeConnection();
                 break;
             case QUIT:
                 send(socket_id, GOODBYE, strlen(GOODBYE), 0);
@@ -200,6 +206,9 @@ void* FTPServer::handle(void* parametres) {
                 break;
             case PORT:
                 pro.setInfo(msgs[1]);
+                break;
+            case PASV:
+                pro.cmdPASV(input.host);
                 break;
             default:
                 send(socket_id, ERROR_MESSAGE, strlen(ERROR_MESSAGE), 0);
@@ -229,7 +238,9 @@ int FTPServer::start() {
         if (cid > 0) {
             // traiter la requete de client ici
             data.cid = cid;
+            data.host = sc.sin_addr.s_addr;
             pthread_create(&tid, NULL, &handle, &data);
+            cout << "server ip: " << inet_ntoa(sc.sin_addr) << endl;
         }
     }
 }
@@ -271,8 +282,8 @@ int FTPServer::listenning(sockaddr_in* name) {
         host_id = *((int *) (host_data->h_addr_list[0]));
         name->sin_family = host_data->h_addrtype;
         name->sin_port = htons(port);
-        name->sin_addr.s_addr = * ((int *) (host_data->h_addr_list[0]));
-        //name->sin_addr.s_addr = htonl(INADDR_ANY);
+        //name->sin_addr.s_addr = * ((int *) (host_data->h_addr_list[0]));
+        name->sin_addr.s_addr = htonl(INADDR_ANY);
 
         errorlevel = bind(data_id, (struct sockaddr *) name, sizeof (*name));
 

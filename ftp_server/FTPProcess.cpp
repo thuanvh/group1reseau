@@ -8,6 +8,8 @@
 #include "FTPProcess.h"
 
 FTPProcess::FTPProcess() {
+    pasv = false;
+    ascii = false;
 }
 void FTPProcess::setClientID(int clientID) {
     this->clientID = clientID;
@@ -19,7 +21,7 @@ string FTPProcess::getDir() const {
     return dir;
 }
 int FTPProcess::getHost() const {
-    return host;
+    return client;
 }
 int FTPProcess::getPort() const {
     return port;
@@ -92,7 +94,7 @@ int FTPProcess::cmdNLST(string path) {
             tmp.assign(dir);
             tmp.append(file_info->d_name);
 
-            if (stat(tmp.c_str(), &stat_buff) != 0) {
+            if (lstat(tmp.c_str(), &stat_buff) != 0) {
                 printf("Error unable to fetch stat information.\n");
             } else {
 
@@ -189,7 +191,7 @@ int FTPProcess::cmdSTOR(string path) {
     */
 
     if ((local_file = fopen(tmp.c_str(), "wb")) == NULL) {
-        printf("Error:  Unable to create local file \"%s\" for writing.\n");
+        printf("Error:  Unable to create local file \"%s\" for writing.\n", tmp.c_str());
         return -1;
     } else {
 
@@ -214,16 +216,17 @@ int FTPProcess::setInfo(string info) {
 
     sscanf(info.c_str(), "%d,%d,%d,%d,%d,%d", &i1, &i2, &i3, &i4, &i5, &i6);
 
-    host = i4;
-    host = (host << 8) | i3;
-    host = (host << 8) | i2;
-    host = (host << 8) | i1;
+    client = i4;
+    client = (client << 8) | i3;
+    client = (client << 8) | i2;
+    client = (client << 8) | i1;
 
     port = (i5 << 8) | i6;
 
     send(clientID, PORT_RESPONSE, strlen(PORT_RESPONSE), 0);
-    addr.s_addr = host;
+    addr.s_addr = client;
     printf("Data port set to %s, socket %d\n", inet_ntoa(addr), port);
+    
     return 1;
 }
 
@@ -236,7 +239,7 @@ int FTPProcess::createConnection() {
     *  Get the host information from the system, and check to make sure
     *  that the result is valid.
     */
-    host_data = gethostbyaddr(&host, sizeof(host), AF_INET);
+    host_data = gethostbyaddr(&client, sizeof(client), AF_INET);
     if (host_data == NULL) {
         printf("Error: Unable to resolve to an address.\n");
         return -1;
@@ -245,9 +248,6 @@ int FTPProcess::createConnection() {
         if (errorlevel == -1) {
           return -1;
         } else {
-            /*  Comment out the next line to make the call blocking
-            fcntl(socket_desc, F_SETFL, O_NONBLOCK); */
-
             name.sin_family = host_data->h_addrtype;
             name.sin_port = htons(port);
             name.sin_addr.s_addr = * ((int *) (host_data->h_addr_list[0]));
@@ -264,4 +264,72 @@ int FTPProcess::createConnection() {
         }
     }
     return 1;
+}
+
+int FTPProcess::cmdPASV(in_addr_t host) {
+    int new_port;
+    char tmp[BUFFER];
+    char send_data[BUFFER];
+    int server_sock, client_sock;
+    sockaddr_in server_echo, client_echo;
+
+    srand (time(NULL));
+    // get a random port from 30000 -> 60000;
+    new_port = rand() % 30000 + 30000;
+    pasv = true;
+    memset(tmp, 0x00, sizeof(tmp));
+    memset(send_data, 0x00, sizeof(send_data));
+    sprintf(tmp, "(%d,%d,%d,%d,%d,%d)"
+            ,(host & 0x000000FF)
+            ,(host >> 8) & 0x000000FF
+            ,(host >> 16) & 0x000000FF
+            ,(host >> 24) & 0x000000FF
+            ,(new_port >> 8) & 0x000000FF
+            ,(new_port & 0x000000FF));
+    sprintf(send_data, PASSIVE_MODE, tmp);
+    printf("port: %d", new_port);
+    
+    
+    // create server socket
+    if ((server_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+        printf("error when creating a socket");
+        return -1;
+    }
+
+    // initialize socket address structure
+    memset(&server_echo, 0x00, sizeof(server_echo));
+    server_echo.sin_family = AF_INET;
+    server_echo.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_echo.sin_port = htons(new_port);
+
+    // bind socket to the port
+    if (bind(server_sock, (sockaddr *)&server_echo, sizeof(server_echo)) < 0) {
+        printf("error when binding to this socket");
+        return -1;
+    }
+
+    // listen on this socket
+    if (listen(server_sock, 1) < 0) {
+        printf("error when listenning on this socket");
+        return -1;
+    }
+
+    unsigned int client_len = sizeof(client_echo);
+    // waiting for client connection
+    send(clientID, send_data, strlen(send_data), 0);
+    if ((client_sock = accept(server_sock, (sockaddr*)&client_echo, &client_len)) < 0) {
+        printf("error when accepting on this socket");
+        return -1;
+    }
+    printf("accepted client: %s\n", inet_ntoa(client_echo.sin_addr));
+    
+    sid = client_sock;
+
+    return 1;
+}
+bool FTPProcess::isAscii() const {
+    return ascii;
+}
+bool FTPProcess::isPasv() const {
+    return pasv;
 }
