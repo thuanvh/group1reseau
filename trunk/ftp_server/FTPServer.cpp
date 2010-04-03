@@ -9,9 +9,10 @@
 #include "FTPCommand.h"
 #include "FTPProcess.h"
 
+string FTPServer::home = "";
+
 FTPServer::FTPServer() {
     port = 0;
-    home = "";
 }
 
 void FTPServer::setHome(string home) {
@@ -58,7 +59,7 @@ void* FTPServer::handle(void* parametres) {
     socket_id = input.cid;
     cmd.setSocketID(socket_id);
     pro.setClientID(socket_id);
-    pro.setDir(home);
+    pro.setDir(FTPServer::home);
 
     send(socket_id, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE), 0);
 
@@ -87,6 +88,7 @@ void* FTPServer::handle(void* parametres) {
                 user_entered = YES;
                 break;
             case PASS:
+                password.assign(msgs[1]);
                 if (user_entered == NO) {
                     send(socket_id, USE_USER_FIRST, strlen(USE_USER_FIRST), 0);
                 } else {
@@ -140,9 +142,10 @@ void* FTPServer::handle(void* parametres) {
                 if (pro.createConnection() == -1) {
                     send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
                 } else {
-                    sprintf(username, "%s (%u,%u).\r\n",
-                            READY_FOR_NLST, host_id, port_number);
-                    send(socket_id, username, strlen(username), 0);
+                    memset(data, 0x00, sizeof(data));
+                    sprintf(data, "%s.\r\n",
+                            READY_FOR_NLST);
+                    send(socket_id, data, strlen(data), 0);
                     pro.cmdNLST(msgs[1]);
                     send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
                     printf("Closing data conneciton.\n");
@@ -153,9 +156,10 @@ void* FTPServer::handle(void* parametres) {
                 if (pro.createConnection() == -1) {
                     send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
                 } else {
-                    sprintf(username, "%s (%u,%u).\r\n",
+                    memset(data, 0x00, sizeof(data));
+                    sprintf(data, "%s (%u,%u).\r\n",
                             READY_FOR_TRANSFER, host_id, port_number);
-                    send(socket_id, username, strlen(username), 0);
+                    send(socket_id, data, strlen(data), 0);
                     if (pro.cmdRETR(msgs[1]) == 1) {
                         send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
                     } else {
@@ -167,14 +171,15 @@ void* FTPServer::handle(void* parametres) {
                 break;
             case NOOP:
                 send(socket_id, NOOP_RESPONSE, strlen(NOOP_RESPONSE), 0);
-                return;
+                return NULL;
             case STOR:
                 if (pro.createConnection() == -1) {
                     send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
                 } else {
-                    sprintf(username, "%s (%u,%u).\r\n",
+                    memset(data, 0x00, sizeof(data));
+                    sprintf(data, "%s (%u,%u).\r\n",
                             READY_FOR_TRANSFER, host_id, port_number);
-                    send(socket_id, username, strlen(username), 0);
+                    send(socket_id, data, strlen(data), 0);
                     if (pro.cmdSTOR(msgs[1]) == 1) {
                         send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
                     } else {
@@ -216,6 +221,7 @@ int FTPServer::start() {
         return -1;
     }
 
+    cout << "server started" << endl;
     // main loop
     while (1) {
         length = sizeof (sc);
@@ -236,6 +242,7 @@ int FTPServer::listenning(sockaddr_in* name) {
     hostent *host_data; /*  Container struct host info   */
 
     /*  Get the name of the local host to get the network information  */
+    memset(port_name, 0x00, sizeof(port_name));
     if (gethostname(port_name, BUFFER) == -1) {
         cout << "Error gethostname" << endl;
         return -1;
@@ -264,10 +271,11 @@ int FTPServer::listenning(sockaddr_in* name) {
         host_id = *((int *) (host_data->h_addr_list[0]));
         name->sin_family = host_data->h_addrtype;
         name->sin_port = htons(port);
-        //name->sin_addr.s_addr = * ((int *) (host_data->h_addr_list[0]));
-        name->sin_addr.s_addr = htonl(INADDR_ANY);
+        name->sin_addr.s_addr = * ((int *) (host_data->h_addr_list[0]));
+        //name->sin_addr.s_addr = htonl(INADDR_ANY);
 
         errorlevel = bind(data_id, (struct sockaddr *) name, sizeof (*name));
+
         if (errorlevel == -1) {
             cout << "Error: bind" << endl;
             close(data_id);

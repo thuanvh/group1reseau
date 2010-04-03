@@ -29,7 +29,8 @@ public:
     string getDir() const;
 
 private:
-    int clientID, port, host,sid;
+    int clientID, port, sid;
+    in_addr_t host;
     string dir;
 };
 

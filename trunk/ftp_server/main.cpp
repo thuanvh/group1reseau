@@ -6,11 +6,17 @@
  */
 
 #include "common.h"
+#include "FTPServer.h"
 
 /*
  * 
  */
 int main(int argc, char** argv) {
+    FTPServer server;
+
+    server.setPort(2122);
+    server.setHome("/home/trung/ftp/");
+    server.start();
 
     return (EXIT_SUCCESS);
 }
