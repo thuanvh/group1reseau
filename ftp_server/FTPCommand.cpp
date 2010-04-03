@@ -21,7 +21,7 @@ FTPCommand::~FTPCommand() {
 
 int FTPCommand::getCommandName(vector<string> &msgs) {
     int  errorlevel;
-    char data[BUFFER];
+    char data[BUFFER], word1[BUFFER], word2[BUFFER];
     string str;
     size_t pos;
 
@@ -31,14 +31,14 @@ int FTPCommand::getCommandName(vector<string> &msgs) {
         return errorlevel;
     }
     data[errorlevel] = NULL;
-    str.assign(data);
-    pos = str.find(" ");
     msgs.clear();
-    if (pos != string::npos) {
-        msgs.push_back(str.substr(0, pos));
-        msgs.push_back(str.substr(pos+1));
+    if (strchr(data, ' ') != NULL) {
+        sscanf(data, "%s%s", word1, word2);
+        msgs.push_back(word1);
+        msgs.push_back(word2);
     } else {
-        msgs.push_back(str);
+        sscanf(data, "%s", word1);
+        msgs.push_back(word1);
     }
 
     return errorlevel;
