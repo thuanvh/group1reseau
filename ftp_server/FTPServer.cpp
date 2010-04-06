@@ -5,6 +5,8 @@
  * Created on March 31, 2010, 2:58 PM
  */
 
+#include <ifaddrs.h>
+
 #include "FTPServer.h"
 #include "FTPCommand.h"
 #include "FTPProcess.h"
@@ -222,6 +224,8 @@ int FTPServer::start() {
     unsigned int length;
     pthread_t tid;
     THREAD_DATA data;
+    sockaddr_in addr;
+    socklen_t len = sizeof(addr);
 
     memset(&ss, 0x00, sizeof (ss));
     sid = listenning(&ss);
@@ -229,7 +233,7 @@ int FTPServer::start() {
         cout << "Error on listenning";
         return -1;
     }
-
+    
     cout << "server started" << endl;
     // main loop
     while (1) {
@@ -237,10 +241,11 @@ int FTPServer::start() {
         cid = accept(sid, (sockaddr*) & sc, &length);
         if (cid > 0) {
             // traiter la requete de client ici
+            getsockname(cid, (sockaddr*)&addr, &len);
+            cout << "my ip: " << inet_ntoa(addr.sin_addr) << endl;
             data.cid = cid;
-            data.host = sc.sin_addr.s_addr;
+            data.host = addr.sin_addr.s_addr;
             pthread_create(&tid, NULL, &handle, &data);
-            cout << "server ip: " << inet_ntoa(sc.sin_addr) << endl;
         }
     }
 }
