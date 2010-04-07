@@ -24,6 +24,8 @@ public:
     int cmdSTOR(string path);
     int cmdPWD();
     int cmdCWD(string path);
+    int cmdType(string type);
+    int cmdSyst();
     void setClientID(int clientID);
     void setDir(string dir);
     string getDir() const;

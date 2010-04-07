@@ -35,15 +35,17 @@ using namespace std;
 
 /*  All the FTP response codes that this program supports.  */
 
-#define READY_FOR_NLST          "150 Binary data connection for directory list"
-#define READY_FOR_TRANSFER      "150 Binary data connection for transfer"
-#define TYPE_RESPONSE           "200 Only TYPE I is implemented.\r\n"
+#define READY_FOR_NLST          "150 ASCII mode data connection for directory list"
+#define READY_I_FOR_TRANSFER    "150 Binary data connection for transfer"
+#define READY_A_FOR_TRANSFER    "150 ASCII mode data connection for transfer"
+#define TYPE_A_RESPONSE         "200 Type set to A.\r\n"
+#define TYPE_I_RESPONSE         "200 Type set to I.\r\n"
 #define MODE_RESPONSE           "200 Only MODE S is implemented.\r\n"
 #define NOOP_RESPONSE           "200 NOOP command successful.\r\n"
 #define PORT_RESPONSE           "200 PORT command successful.\r\n"
-#define WELCOME_MESSAGE         "220 DePaula FTP server (MyOS 5.7) ready.\r\n"
+#define WELCOME_MESSAGE         "220 FTP server (Group 1) ready.\r\n"
 #define GOODBYE                 "221 Goodbye.\r\n"
-#define TRANSFER_COMPLETE       "226 Binary Transfer complete\r\n"
+#define TRANSFER_COMPLETE       "226 Transfer complete\r\n"
 #define USER_LOGGED_IN          "230 User logged in.\r\n"
 #define CWD_SUCCESSFUL          "250 CWD command successful.\r\n"
 #define PWD_PREFIX              "257 Current directory is "
@@ -55,6 +57,7 @@ using namespace std;
 #define NO_SUCH_FILE            "550 No such file or location.\r\n"
 #define CANNOT_CREATE_FILE      "550 Cannot create file.\r\n"
 #define PASSIVE_MODE            "227 Entering Passive Mode %s.\r\n"
+#define SERVER_TYPE             "215 UNIX Type: L8\r\n"
 
 /*  Des commandes FTP supportees par ce serveur.     */
 enum _CommandType { ERROR, TYPE, MODE, NLST, RETR, NOOP, STOR,
