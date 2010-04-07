@@ -30,7 +30,28 @@ int FTPProcess::getPort() const {
 FTPProcess::~FTPProcess() {
 }
 
+int FTPProcess::cmdType(string type) {
+    if (strcmp(type.c_str(), "I") == 0) {
+        ascii = false;
+        send(clientID, TYPE_I_RESPONSE, strlen(TYPE_I_RESPONSE), 0);
+    } else if (strcmp(type.c_str(), "A") == 0) {
+        ascii = true;
+        send(clientID, TYPE_A_RESPONSE, strlen(TYPE_A_RESPONSE), 0);
+    } else {
+        send(clientID, ERROR_MESSAGE, strlen(ERROR_MESSAGE), 0);
+    }
+
+    return 1;
+}
+
+int FTPProcess::cmdSyst() {
+    send(clientID, SERVER_TYPE, strlen(SERVER_TYPE), 0);
+    return 1;
+}
+
 void FTPProcess::closeConnection() {
+    printf("Closing data conneciton.\n");
+    pasv = false;
     shutdown(sid, 2);
     close(sid);
 }
@@ -38,7 +59,6 @@ void FTPProcess::closeConnection() {
 int FTPProcess::cmdCWD(string path) {
     string tmp;
     struct stat buffer;
-    int         status;
 
     if (path.find('/') == 0) {
         tmp = path;
@@ -60,8 +80,8 @@ int FTPProcess::cmdCWD(string path) {
 }
 
 int FTPProcess::cmdNLST(string path) {
-    int            slash_flag = NO;         /*  If the -F flag is set       */
-    char data[BUFFER]; /*  Buffer for data blocks      */
+    int slash_flag = NO;         /*  If the -F flag is set       */
+    char data[BUFFER];
     DIR *name_list; /*  File handle for temp file   */
     struct dirent *file_info; /*  Local files in the directory*/
     struct stat stat_buff; /*  File info (is it a dir?)    */
@@ -70,14 +90,6 @@ int FTPProcess::cmdNLST(string path) {
     if (strcmp(path.c_str(), "-F") == 0) {
         slash_flag = YES;
     }
-
-    /*
-     *  In order to get the local file list, a new function will need to be
-     *  called, that is, opendir() which makes use of a DIR structure, and
-     *  another function called readdir().  This list will be gone through
-     *  and all directories will have a '/' put on it if the options flag
-     *  is set.
-     */
 
     if ((name_list = opendir(dir.c_str())) == NULL) {
         printf("Error:  Unable to open local directory.\n");
@@ -124,6 +136,7 @@ int FTPProcess::cmdNLST(string path) {
 
             }
         }
+        closedir(name_list);
     }
     return 1;
 }
@@ -151,8 +164,13 @@ int FTPProcess::cmdRETR(string path) {
     /*
     *  Open the local file for reading.
     */
+    if (ascii) {
+        local_file = fopen(tmp.c_str(), "r");
+    } else {
+        local_file = fopen(tmp.c_str(), "rb");
+    }
 
-    if ((local_file = fopen(tmp.c_str(), "rb")) == NULL) {
+    if (local_file == NULL) {
         printf("Error:  Unable to open local file \"%s\" for writing.\n",
                tmp.c_str());
         return -1;
@@ -165,8 +183,8 @@ int FTPProcess::cmdRETR(string path) {
 
         errorlevel = fread(listing, sizeof(char), BUFFER, local_file);
         while (errorlevel != 0) {
-          send(sid, listing, errorlevel, NULL);
-          errorlevel = fread(listing, sizeof(char), BUFFER, local_file);
+            send(sid, listing, errorlevel, NULL);
+            errorlevel = fread(listing, sizeof(char), BUFFER, local_file);
         }
         fclose(local_file);
         return 1;
@@ -177,6 +195,7 @@ int FTPProcess::cmdSTOR(string path) {
     int            errorlevel;             /*  General return codes         */
     char           listing[BUFFER];        /*  Buffer for the file names    */
     FILE           *local_file;            /*  File handle for local file   */
+    bool flag = false;
 
     string tmp;
 
@@ -190,7 +209,13 @@ int FTPProcess::cmdSTOR(string path) {
     *  Open the local file for writing.
     */
 
-    if ((local_file = fopen(tmp.c_str(), "wb")) == NULL) {
+    if (ascii) {
+        local_file = fopen(tmp.c_str(), "w");
+    } else {
+        local_file = fopen(tmp.c_str(), "wb");
+    }
+
+    if (local_file == NULL) {
         printf("Error:  Unable to create local file \"%s\" for writing.\n", tmp.c_str());
         return -1;
     } else {
@@ -202,8 +227,19 @@ int FTPProcess::cmdSTOR(string path) {
 
         errorlevel = recv(sid, listing, sizeof(char) * BUFFER, NULL);
         while (errorlevel != 0) {
-          fwrite(listing, errorlevel, 1, local_file);
-          errorlevel = recv(sid, listing, sizeof(char) * BUFFER, NULL);
+            if (ascii) {
+                for (int j = 0 ; j < errorlevel; j++) {
+                    if (listing[j] == 0x0D) {
+                        if (j+1 < errorlevel && listing[j+1] == 0x0A) {
+                            j++;
+                        }
+                    }
+                    putc((char)listing[j], local_file);
+                }
+            } else {
+                fwrite(listing, errorlevel, 1, local_file);
+            }
+            errorlevel = recv(sid, listing, sizeof(char) * BUFFER, NULL);
         }
         fclose(local_file);
         return 1;
@@ -292,7 +328,7 @@ int FTPProcess::cmdPASV(in_addr_t host) {
     
     // create server socket
     if ((server_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-        printf("error when creating a socket");
+        printf("Unable to create a socket");
         return -1;
     }
 
@@ -321,7 +357,7 @@ int FTPProcess::cmdPASV(in_addr_t host) {
         printf("error when accepting on this socket");
         return -1;
     }
-    printf("accepted client: %s\n", inet_ntoa(client_echo.sin_addr));
+    printf("Accepted client: %s\n", inet_ntoa(client_echo.sin_addr));
     
     sid = client_sock;
 
