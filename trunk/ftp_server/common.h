@@ -25,6 +25,8 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
+#include <pwd.h>
+#include <grp.h>
 
 using namespace std;
 
@@ -61,7 +63,7 @@ using namespace std;
 
 /*  Des commandes FTP supportees par ce serveur.     */
 enum _CommandType { ERROR, TYPE, MODE, NLST, RETR, NOOP, STOR,
-		    USER, PASS, QUIT, PWD, CWD, PORT, PASV, SYST };
+		    USER, PASS, QUIT, PWD, CWD, PORT, PASV, SYST, LIST };
 typedef enum _CommandType CommandType;
 
 typedef struct _thread_data {

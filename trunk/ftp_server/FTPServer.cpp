@@ -208,7 +208,22 @@ void* FTPServer::handle(void* parametres) {
                 pro.cmdPASV(input.host);
                 break;
             case SYST:
-                pro.cmdSyst();
+                pro.cmdSYST();
+                break;
+            case LIST:
+                if (!pro.isPasv()) {
+                    if (pro.createConnection() == -1) {
+                        send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
+                        break;
+                    }
+                }
+                memset(data, 0x00, sizeof(data));
+                sprintf(data, "%s.\r\n",
+                        READY_FOR_NLST);
+                send(socket_id, data, strlen(data), 0);
+                pro.cmdLIST((msgs.size()==2)?msgs[1]:"");
+                send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
+                pro.closeConnection();
                 break;
             default:
                 send(socket_id, ERROR_MESSAGE, strlen(ERROR_MESSAGE), 0);

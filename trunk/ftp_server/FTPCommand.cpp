@@ -75,6 +75,8 @@ CommandType FTPCommand::getCommandType(string name) {
         return PASV;
     } else if (strcasecmp(name.c_str(), "SYST") == 0) {
         return SYST;
+    } else if (strcasecmp(name.c_str(), "LIST") == 0) {
+        return LIST;
     } else {
         return ERROR;
     }
