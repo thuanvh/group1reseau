@@ -44,7 +44,7 @@ int FTPProcess::cmdType(string type) {
     return 1;
 }
 
-int FTPProcess::cmdSyst() {
+int FTPProcess::cmdSYST() {
     send(clientID, SERVER_TYPE, strlen(SERVER_TYPE), 0);
     return 1;
 }
@@ -87,7 +87,7 @@ int FTPProcess::cmdNLST(string path) {
     struct stat stat_buff; /*  File info (is it a dir?)    */
     string tmp;
 
-    if (strcmp(path.c_str(), "-F") == 0) {
+    if (path.length() > 0 && strcmp(path.c_str(), "-F") == 0) {
         slash_flag = YES;
     }
 
@@ -95,12 +95,6 @@ int FTPProcess::cmdNLST(string path) {
         printf("Error:  Unable to open local directory.\n");
         send(sid, NO_SUCH_FILE, strlen(NO_SUCH_FILE), 0);
     } else {
-
-        /*
-         *  Steps:  Get the next file in the directory, then get the file info
-         *  to check to see if it is a directory.  If it is, then check to see
-         *  if a slash needs to be placed on it.
-         */
 
         while ((file_info = readdir(name_list)) != NULL) {
             tmp.assign(dir);
@@ -110,19 +104,10 @@ int FTPProcess::cmdNLST(string path) {
                 printf("Error unable to fetch stat information.\n");
             } else {
 
-                /*
-                 *  If a simple file, do no processing, and print it out.
-                 */
-
                 memset(data, 0x00, sizeof(data));
                 if (!S_ISDIR(stat_buff.st_mode)) {
                     sprintf(data, "%s\r\n", file_info->d_name);
                     send(sid, data, strlen(data), 0);
-
-                    /*
-                     *  It is a directory, so print it out with the optional '/' on it
-                     *  while making sure not to send the '.' and '..' directories.
-                     */
 
                 } else if ((strcmp(file_info->d_name, ".") != 0) &&
                         (strcmp(file_info->d_name, "..") != 0)) {
@@ -134,6 +119,70 @@ int FTPProcess::cmdNLST(string path) {
                     send(sid, data, strlen(data), 0);
                 }
 
+            }
+        }
+        closedir(name_list);
+    }
+    return 1;
+}
+
+int FTPProcess::cmdLIST(string path) {
+    char data[BUFFER];
+    DIR *name_list; /*  File handle for temp file   */
+    struct dirent *file_info; /*  Local files in the directory*/
+    struct stat stat_buff; /*  File info (is it a dir?)    */
+    string tmp;
+    struct passwd  *pwd;
+    struct group   *grp;
+    struct tm      *tm;
+    char            datestring[256];
+
+    if ((name_list = opendir(dir.c_str())) == NULL) {
+        printf("Error:  Unable to open local directory.\n");
+        send(sid, NO_SUCH_FILE, strlen(NO_SUCH_FILE), 0);
+        return -1;
+    } else {
+
+        while ((file_info = readdir(name_list)) != NULL) {
+            tmp.assign(dir);
+            tmp.append(file_info->d_name);
+
+            if (lstat(tmp.c_str(), &stat_buff) != 0) {
+                printf("Error unable to fetch stat information.\n");
+            } else {
+
+                memset(data, 0x00, sizeof(data));
+                if (!S_ISDIR(stat_buff.st_mode)) {
+                    data[0] = '-';
+                } else if ((strcmp(file_info->d_name, ".") != 0) &&
+                        (strcmp(file_info->d_name, "..") != 0)) {
+                    data[0] = 'd';
+                } else {
+                    continue;
+                }
+                // permission
+                sperm(&data[1], stat_buff.st_mode);
+                sprintf(&data[strlen(data)], "%3d", stat_buff.st_nlink);
+
+                if ((pwd = getpwuid(stat_buff.st_uid)) != NULL)
+                    sprintf(&data[strlen(data)], " %-8.8s", pwd->pw_name);
+                else
+                    sprintf(&data[strlen(data)], " %-8d", stat_buff.st_uid);
+
+                if ((grp = getgrgid(stat_buff.st_gid)) != NULL)
+                    sprintf(&data[strlen(data)], " %-8.8s", grp->gr_name);
+                else
+                    sprintf(&data[strlen(data)], " %-8d", stat_buff.st_gid);
+
+                sprintf(&data[strlen(data)], " %9jd", (intmax_t)stat_buff.st_size);
+
+                tm = localtime(&stat_buff.st_mtime);
+
+                strftime(datestring, sizeof(datestring), "%Y-%m-%d %H:%M", tm);
+
+                sprintf(&data[strlen(data)], " %s %s\r\n", datestring, file_info->d_name);
+
+                send(sid, data, strlen(data), 0);
             }
         }
         closedir(name_list);
@@ -368,4 +417,42 @@ bool FTPProcess::isAscii() const {
 }
 bool FTPProcess::isPasv() const {
     return pasv;
+}
+
+char* FTPProcess::sperm(char* buff, __mode_t mode) {
+    int i = 0;
+    if (buff != NULL) {
+        // user permission
+        if ((mode & S_IRUSR) == S_IRUSR) buff[i] = 'r';
+        else buff[i] = '-';
+        i++;
+        if ((mode & S_IWUSR) == S_IWUSR) buff[i] = 'w';
+        else buff[i] = '-';
+        i++;
+        if ((mode & S_IXUSR) == S_IXUSR) buff[i] = 'x';
+        else buff[i] = '-';
+        i++;
+        // groupe permission
+        if ((mode & S_IRGRP) == S_IRGRP) buff[i] = 'r';
+        else buff[i] = '-';
+        i++;
+        if ((mode & S_IWGRP) == S_IWGRP) buff[i] = 'w';
+        else buff[i] = '-';
+        i++;
+        if ((mode & S_IXGRP) == S_IXGRP) buff[i] = 'x';
+        else buff[i] = '-';
+        i++;
+        // other permission
+        if ((mode & S_IROTH) == S_IROTH) buff[i] = 'r';
+        else buff[i] = '-';
+        i++;
+        if ((mode & S_IWOTH) == S_IWOTH) buff[i] = 'w';
+        else buff[i] = '-';
+        i++;
+        if ((mode & S_IXOTH) == S_IXOTH) buff[i] = 'x';
+        else buff[i] = '-';
+        i++;
+        buff[i] = 0x00;
+    }
+    return buff;
 }
