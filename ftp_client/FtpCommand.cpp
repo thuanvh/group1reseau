@@ -16,6 +16,9 @@ FtpCommand::FtpCommand() {
         _login = false;
         _socket = -1;
         _connection_status = FtpConstant::FTP_NOT_CONNECT;
+        _stringPath = "/home";
+
+        _info = "";
         //this->_ftpExecution = new FtpExecution();
         //this->_ftpConnection = new FtpConnection();
 }
@@ -85,11 +88,13 @@ void FtpCommand::handleCommand()
             this->_ftpExecution.closeConnection(_socket);
             _socket = -1;
             _status = false;
+            this->_stringPath = "";
             return;
         }
         else
         {
            _status = false;
+           this->_stringPath = "";
            return;
         }
     }
@@ -143,7 +148,14 @@ void FtpCommand::handleCommand()
             }
             if (code == FtpConstant::FTP_CD)
             {
-                _ftpExecution.cd(_socket, _info);
+                if(_ftpExecution.cd(_socket, _info) == 1)
+                {
+                    _stringPath = _info;
+                }
+                else
+                {
+                    _info = _stringPath;
+                }
                 return;
             }
             if (code == FtpConstant::FTP_GET)
@@ -173,6 +185,7 @@ void FtpCommand::handleCommand()
             {
                 _ftpExecution.closeConnection(_socket);
                 _socket = -1;
+                this->_stringPath = "";
                 return;
             }
         }
@@ -202,6 +215,10 @@ void FtpCommand::readCommandLine()
     {
         _code = command1;
         _info = command2;
+        if(_code == MY_FTP_COMMAND_LS && strcmp(_info.c_str(),"") == 0)
+        {
+            _info = _stringPath;
+        }
         if(_code == MY_CLIENT_FTP_COMMAND_OPEN)
         {
             cout<<"(to) ";
@@ -222,7 +239,21 @@ void FtpCommand::readCommandLine()
     else
     {
         _code = command1;
-        _info = command2;
+        _info = command2; 
+        if(_code == MY_FTP_COMMAND_GET || _code == MY_FTP_COMMAND_PUT)
+        {
+            if(_info[0] != '/')
+            {
+                _info = _stringPath + "/" + _info;
+            }
+        }
+        if(_code == MY_FTP_COMMAND_CD)
+        {
+            if(_info.substr(0,5) != "/home")
+            {
+                _info = _stringPath + "/" + _info;
+            }
+        }
         if(_code == MY_CLIENT_FTP_COMMAND_OPEN)
         {
             splitString(command2," ",command3,command4);

@@ -51,6 +51,7 @@ private:
     bool _status;
     bool _login;
     int _socket;
+    string _stringPath;
 
 
 public:

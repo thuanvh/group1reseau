@@ -7,6 +7,8 @@
 
 #include <string>
 #include "FtpConnection.h"
+#include <unistd.h>
+
 using namespace std;
 
 #ifndef _FTPEXECUTION_H
@@ -51,18 +53,36 @@ public:
 
     int connectPassive(int sock);
 
-    int cd(int socket, const string folderPath);
+    int cd(int socket, string& folderPath);
 
-    int listFile(int socket, string pathName);
+    int listFile(int socket, string& pathName);
 
-    int getFile(int socket, string fileName);
+    int getFile(int socket, string& fileName);
     //int receiveFile(int socket, const string& fileName);
 
-    int putFile(int socket, string fileName);
+    int putFile(int socket, string& fileName);
     //int sendFile(int socket, const string& fileName);
 
     //int makeclose();
     //int quit();
+    static string getCurrentDir()
+    {
+       char cwd[1024];
+       if (getcwd(cwd, sizeof(cwd)) != NULL)
+           return cwd;
+       else
+           perror("getcwd() error");
+       return "";
+    }
+
+    static string splitFileName(const string& path)
+    {
+        string current = getCurrentDir();
+        size_t found;
+        found=path.find_last_of("/\\");
+        return current + "/" + path.substr(found+1);
+
+    }
     
 };
 
