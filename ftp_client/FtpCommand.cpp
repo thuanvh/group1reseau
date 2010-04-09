@@ -15,12 +15,8 @@ FtpCommand::FtpCommand() {
 	_status = true;
         _login = false;
         _socket = -1;
-        _connection_status = FtpConstant::FTP_NOT_CONNECT;
-        _stringPath = "/home";
-
         _info = "";
-        //this->_ftpExecution = new FtpExecution();
-        //this->_ftpConnection = new FtpConnection();
+        _connection_status = FtpConstant::FTP_NOT_CONNECT;
 }
 
 FtpCommand::~FtpCommand() {
@@ -38,27 +34,20 @@ bool FtpCommand::isRunning() {
 	return _status;
 }
 
+bool FtpCommand::isLogin() {
+	return _login;
+}
+
 int FtpCommand::getArguments(int argc, char* argv[]) {
 
-    if(strcmp(argv[0],MY_CLIENT_FTP_COMMAND_OPEN.c_str()) == 0)
-    {
+    if(strcmp(argv[0],MY_CLIENT_FTP_COMMAND_OPEN.c_str()) == 0) {
         _code = MY_CLIENT_FTP_COMMAND_OPEN;
-     /*   if(argc == 1)
-        {
-            _code = "OPEN";
-            string str_host_port;
-            cout<<"to: ";
-            cin >> str_host_port;
-            splitString(str_host_port, " ", _host, _port);
-            if(_port.compare("") == 0)
-                _port = "21";
-            _connection_status = FtpConstant::FTP_OPEN_CONNECTION;
-        }*/
             
         if (argc == 2) {
             _host = argv[1];
             _port = "21";
         }
+        
         if(argc == 3){
             _host = argv[1];
             _port = argv[2];
@@ -69,69 +58,51 @@ int FtpCommand::getArguments(int argc, char* argv[]) {
 
 void FtpCommand::handleCommand()
 {
-    //int socket = -1;
     int code = FtpCommand::getIntCommandCode(_code);
-    //readCommandLine();
-
-    /*
-    bool cont = true;
-    char buf[256];
-    char *command = new char[256];
-    char *param = new char[256];
-    char *param1 = (char *)"";
-    while (cont)
-    {*/
-    //socket = this->_ftpExecution.openConnection(_host,_port);
-
+    
     if(code == FtpConstant::FTP_QUIT) {
        if (_socket != -1) {
             this->_ftpExecution.closeConnection(_socket);
             _socket = -1;
             _status = false;
-            this->_stringPath = "";
             return;
         }
-        else
-        {
+        else    {
            _status = false;
-           this->_stringPath = "";
            return;
         }
     }
     
-    if (code == FtpConstant::CLIENT_FTP_OPEN)
-    {
-        if (_socket == -1)
-        {
+    if (code == FtpConstant::CLIENT_FTP_OPEN)   {
+        if (_socket == -1)  {
             int sock = this->_ftpExecution.openConnection(_host,_port);
-            if(sock != -1)
-            {
+            
+            if(sock != -1)  {
                 string username;
                 cout<<"Name: ";
                 getline(cin,username);
+
                 code = _ftpExecution.user(sock, username);
+                
                 if(code == -1)
                     _login = false;
-                else
-                {
+                else    {
                     _socket = sock;
                     _login = true;
                 }
             }
             return;
         }
-        else
-        {
+        else    {
             cout<<STRING_ALREADY_CONNECTED<<endl;
             return;
         }
     }
 
-    if (_socket != -1)
-    {
-        if (code == FtpConstant::FTP_USER)
-        {
+    if (_socket != -1)  {
+        if (code == FtpConstant::FTP_USER)  {
             code = _ftpExecution.user(_socket, _info);
+            
             if(code == -1)
                 _login = false;
              else
@@ -139,64 +110,64 @@ void FtpCommand::handleCommand()
             return;
         }
 
-        if (_login == true)
-        {
-            if (code == FtpConstant::FTP_LS)
-            {
+        if (_login == true) {
+            if (code == FtpConstant::FTP_LS)    {
                 _ftpExecution.listFile(_socket, _info);
                 return;
             }
-            if (code == FtpConstant::FTP_CD)
-            {
-                if(_ftpExecution.cd(_socket, _info) == 1)
-                {
-                    _stringPath = _info;
-                }
-                else
-                {
-                    _info = _stringPath;
-                }
+
+            if (code == FtpConstant::FTP_CD)    {
+                _ftpExecution.changeDirectory(_socket, _info);
                 return;
             }
-            if (code == FtpConstant::FTP_GET)
-            {
+
+            if (code == FtpConstant::FTP_GET)   {
                 _ftpExecution.getFile(_socket, _info);
                 return;
             }
-            if (code == FtpConstant::FTP_PUT)
-            {
+
+            if (code == FtpConstant::FTP_PUT)   {
                 _ftpExecution.putFile(_socket, _info);
                 return;
             }
-            /*
-            if (strcmp(command, "binary") == 0)
-            {
-                binary(sock, true);
-                continue;
+            
+            if (code == FtpConstant::FTP_BINARY)    {
+                 _ftpExecution.toBinary(_socket, true);
+                return;
             }
 
-            if (strcmp(command, "ascii") == 0)
-            {
-                binary(sock, false);
-                continue;
+            if (code == FtpConstant::FTP_ASCII) {
+                 _ftpExecution.toBinary(_socket, false);
+                return;
             }
-            */
-            if (code == FtpConstant::CLIENT_FTP_CLOSE)
-            {
+
+            if (code == FtpConstant::FTP_MKDIR) {
+                 _ftpExecution.makeDirectory(_socket, _info);
+                return;
+            }
+
+            if (code == FtpConstant::FTP_RMDIR) {
+                 _ftpExecution.removeDirectory(_socket, _info);
+                return;
+            }
+
+            if (code == FtpConstant::FTP_DEL)   {
+                 _ftpExecution.deleteFile(_socket, _info);
+                return;
+            }
+            
+            if (code == FtpConstant::CLIENT_FTP_CLOSE)  {
                 _ftpExecution.closeConnection(_socket);
                 _socket = -1;
-                this->_stringPath = "";
                 return;
             }
         }
-        else
-        {
+        else    {
             cout<<STRING_NOT_CONNECTED<<endl;
             return;
         }
     }
-    else
-    {
+    else    {
         cout<<STRING_NOT_CONNECTED<<endl;
         return;
     }
@@ -207,30 +178,30 @@ void FtpCommand::handleCommand()
 void FtpCommand::readCommandLine()
 {
     string command, command1, command2, command3, command4;
+
     cout<<"ftp>";
     getline (cin, command);
     cin.clear();
+    
     FtpCommand::splitString(command," ",command1, command2);
+    
     if(strcmp(command2.c_str(),"") == 0)
     {
         _code = command1;
         _info = command2;
-        if(_code == MY_FTP_COMMAND_LS && strcmp(_info.c_str(),"") == 0)
-        {
-            _info = _stringPath;
-        }
+        
         if(_code == MY_CLIENT_FTP_COMMAND_OPEN)
         {
             cout<<"(to) ";
             getline (cin, command2);
+
             splitString(command2," ",command3,command4);
-            if(strcmp(command4.c_str(),"") == 0)
-            {
+            
+            if(strcmp(command4.c_str(),"") == 0)    {
                 _host = command3;
                 _port = "21";
             }
-            else
-            {
+            else    {
                 _host = command3;
                 _port = command4;
             }
@@ -239,31 +210,16 @@ void FtpCommand::readCommandLine()
     else
     {
         _code = command1;
-        _info = command2; 
-        if(_code == MY_FTP_COMMAND_GET || _code == MY_FTP_COMMAND_PUT)
-        {
-            if(_info[0] != '/')
-            {
-                _info = _stringPath + "/" + _info;
-            }
-        }
-        if(_code == MY_FTP_COMMAND_CD)
-        {
-            if(_info.substr(0,5) != "/home")
-            {
-                _info = _stringPath + "/" + _info;
-            }
-        }
-        if(_code == MY_CLIENT_FTP_COMMAND_OPEN)
-        {
+        _info = command2;
+
+        if(_code == MY_CLIENT_FTP_COMMAND_OPEN) {
             splitString(command2," ",command3,command4);
-            if(strcmp(command4.c_str(),"") == 0)
-            {
+
+            if(strcmp(command4.c_str(),"") == 0)    {
                 _host = command3;
                 _port = "21";
             }
-            else
-            {
+            else    {
                 _host = command3;
                 _port = command4;
             }

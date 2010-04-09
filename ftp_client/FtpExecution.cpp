@@ -4,109 +4,108 @@
 
 FtpExecution::FtpExecution(){
     this->ascii = false;
-    
 }
 
 FtpExecution::~FtpExecution(){
-    
+    //
 }
 
 int FtpExecution::openConnection(const string& host, const string& port) {
-	struct sockaddr_in _address;
-	struct hostent * _hostent;
-	int _socket = -1;
-	int _code;
-        
-	//cout<<"Server name: "<<host<<" and port = "<<port;
 
-	//Get l'adresse du serveur
-	if (!inet_aton(host.c_str(), &_address.sin_addr))
-	{
-            _hostent = gethostbyname(host.c_str());
-            if (!_hostent)
-            {
-                herror("gethostbyname");
-                return -1;
-            }
-            else
-                _address.sin_addr.s_addr =
-                        inet_addr(inet_ntoa(*((struct in_addr *)_hostent->h_addr)));
-	}
+    struct sockaddr_in _address;
+    struct hostent * _hostent;
 
+    int _socket = -1;
+    int _code;
 
-	//Créer le socket
-	if((_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-	{
-            herror("socket");
+    string _buffer;
+
+    if (!inet_aton(host.c_str(), &_address.sin_addr))
+    {
+        _hostent = gethostbyname(host.c_str());
+        if (!_hostent)  {
+            herror("gethostbyname");
             return -1;
-	}
+        }
+        else
+            _address.sin_addr.s_addr =
+                    inet_addr(inet_ntoa(*((struct in_addr *)_hostent->h_addr)));
+    }
+    
+    if((_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)   {
+        herror("socket");
+        return -1;
+    }
 
-	_address.sin_family=AF_INET;
-	_address.sin_port=htons(atoi(port.c_str()));
+    _address.sin_family=AF_INET;
+    _address.sin_port=htons(atoi(port.c_str()));
 
-	//Connecter
-	if(connect(_socket, (struct sockaddr *)&_address,
-                                    sizeof(struct sockaddr)) == -1)
-	{
-            herror("connect");
-            return -1;
-	}
+    if(connect(_socket, (struct sockaddr *)&_address,
+                                sizeof(struct sockaddr)) == -1) {
+        herror("connect");
+        return -1;
+    }
 
-	/*
-        char buf[256];
-	memset(buf, 0, 256);
-	_code = FtpConnection::receiveTimeout(_socket, buf, 256, 0);
-	if (_code == -1)
-	{
-            herror("receive");
-            return -1;
-	}
-         * */
-        string _buffer;
-        _code = FtpConnection::receiveResponse(_socket, _buffer);
-        
-	if (_code == -1)
-	{
-            herror("receive");
-            return -1;
-	}
+    _code = FtpConnection::receiveResponse(_socket, _buffer);
 
-	cout<<_buffer;
-	return _socket;
+    if (_code == -1)    {
+        herror("receive");
+        return -1;
+    }
+    
+    cout<<_buffer;
+    return _socket;
 }
 
 int FtpExecution::closeConnection(int socket) {
-
-    int _result = FtpConnection::sendCommand(socket, FTP_COMMAND_QUIT+"\r\n");
-
-    /*char _buffer[256];
-    memset(_buffer, 0, 256);
-    */
     string _buffer;
+    int _result = FtpConnection::sendCommand(socket, FTP_COMMAND_QUIT+"\r\n");
     FtpConnection::receiveResponse(socket, _buffer);
-
     cout<<endl<<_buffer;
     return _result;
 }
 
+int FtpExecution::makeDirectory(int socket, string& pathName)   {
+    string buffer;
+    int result = FtpConnection::sendCommand(socket, FTP_COMMAND_MKDIR + " " + pathName + "\r\n");
+    FtpConnection::receiveResponse(socket, buffer);
+    cout<<buffer;
+    return result;
+}
+
+int FtpExecution::removeDirectory(int socket, string& pathName)
+{
+    string buffer;
+    int result = FtpConnection::sendCommand(socket, FTP_COMMAND_RMDIR + " " + pathName + "\r\n");
+    FtpConnection::receiveResponse(socket, buffer);
+    cout<<buffer;
+    return result;
+}
+
+int FtpExecution::deleteFile(int socket, string& pathName)
+{   
+    int result = FtpConnection::sendCommand(socket, FTP_COMMAND_DEL + " " + pathName + "\r\n");
+    string buffer;
+    if(FtpConnection::receiveResponse(socket, buffer) != -1)    {
+        cout<<buffer;
+    }
+    return result;
+}
+
 int FtpExecution::user(int socket, const string& username) {
-    //char _cmd[256];
-    //char _buf[256];
-    //memset(_buf, 0, 256);
     
     string _buffer;
     string str_user_command = FTP_COMMAND_USER + " " + username + "\r\n";
 
     int _result = FtpConnection::sendCommand(socket, str_user_command);
     int   _code =  FtpConnection::receiveResponse(socket, _buffer);
-    //int   _code =  FtpConnection::receiveTimeout(socket, _buf, 256, 0);
     
     cout<<_buffer;
 
     _code = atoi(_buffer.c_str());
 
     if (_code == FtpConstant::CODE_NEED_PASSWORD) {
-            // username ok, need password
+        // username ok, need password
         string password;
         password = getpass("Password: ");
         _result = login( socket, password);
@@ -133,71 +132,35 @@ int FtpExecution::login(int socket, const string& password) {
     return _result;
 }
 
-/** Etablir la mode passive pour envoyer des données
- * @param sock l'identificateur du socket qu'on va utiliser
- */
 int FtpExecution::connectPassive(int sock)
 {
 	struct sockaddr_in addr;
-	char buf[256];
-	char ip[15];
-	char strPort[4];
-	int port[2];
-	char *str;
+	string buffer;
+        int port[2];
+        string ip;
 	int sockData;
-        //string _buffer;
-
-	//Demander
+        
 	FtpConnection::sendCommand(sock, FTP_COMMAND_PASV+"\r\n");
 
-	memset(buf, 0, 256);
-	int code = FtpConnection::receiveTimeout(sock, buf, 256, 0);
-	cout<<buf;
+	int code = FtpConnection::receiveResponse(sock, buffer);
+	cout<<buffer;
         
-	//printf("\nCode = %d   ", code);
-	if(code == -1)
-	{
+	if(code == -1)  {
             cout<< STRING_TIME_OUT<<endl;
             return -1;
 	}
 
-	//Prendre l'adresse du serveur
-	str = strchr(buf, '(') + 1;
-	int nComma = 0;
-	int i = 0;
-	memset(ip, 0, 15);
-	while (nComma < 4)
-	{
-            if (str[i] == ',')
-            {
-                    nComma ++;
-                    if (nComma < 4) ip[i] = '.';
-            }
-            else ip[i] = str[i];
-            i ++;
-	}
+        FtpExecution::getAddressPort(buffer, port, ip);
 
-	//Prendre les portes
-	str += i * sizeof(char);
-	char *str1 = strchr(str, ',');
-	str1[0] = 0;
-	port[0] = atoi(str);
-	str = str1 + sizeof(char);
-	str1 = strchr(str, ')');
-	str1[0] = 0;
-
-	port[1] = atoi(str);
-
-	//Créer le socket pour prendre des données
         /*get the socket descriptor*/
-	if((sockData=socket(AF_INET, SOCK_STREAM, 0))==-1)
+	if((sockData = socket(AF_INET, SOCK_STREAM, 0))==-1)
 	{
             herror("socket");
             return -1;
 	}
 
 	addr.sin_family=AF_INET;
-	addr.sin_addr.s_addr = inet_addr (ip);
+	addr.sin_addr.s_addr = inet_addr (ip.c_str());
 	addr.sin_port= htons (256 * port[0] + port[1]);
 	bzero(&(addr.sin_zero),8);
 
@@ -212,15 +175,11 @@ int FtpExecution::connectPassive(int sock)
 	return sockData;
 }
 
-int FtpExecution::cd(int socket, string& pathname)
+int FtpExecution::changeDirectory(int socket, string& pathname)
 {
     string _buffer;
-    string _cmd = FTP_COMMAND_CD + " " + pathname + "\r\n";
-
-    FtpConnection::sendCommand(socket, _cmd);
-
-    if(FtpConnection::receiveResponse(socket, _buffer) != -1)
-    {
+    FtpConnection::sendCommand(socket, FTP_COMMAND_CD + " " + pathname + "\r\n");
+    if(FtpConnection::receiveResponse(socket, _buffer) != -1)   {
         cout<<_buffer;
         if(_buffer.substr(0,3) == "550")
             return 0;
@@ -233,34 +192,29 @@ int FtpExecution::cd(int socket, string& pathname)
 int FtpExecution::listFile(int socket, string& folderPath) {
     
     int sockData = connectPassive(socket);
-   // cout<<"\nsocket = "<<sockData<<endl;
-
-    //Demander
     string _cmd;
     if (folderPath == "")
-        folderPath = "/home";
-    _cmd = FTP_COMMAND_LS + " " + folderPath+"\r\n";
+        _cmd = FTP_COMMAND_LS + "\r\n";
+    else
+        _cmd = FTP_COMMAND_LS + " " + folderPath + "\r\n";
 
     FtpConnection::sendCommand(socket, _cmd);
 
     char *list = new char[1000];
     int i;
-    if ((i = FtpConnection::receiveTimeout(socket, list, 999, 0)) != 1)
-    {
+    if ((i = FtpConnection::receiveTimeout(socket, list, 999, 0)) != 1) {
         list[i] = 0;
         cout<<list;
     }
 
-    //Recevoir et afficher la liste
-    while((i = FtpConnection::receiveTimeout(sockData, list, 1000, 0)) > 0)
-    {
+    while((i = FtpConnection::receiveTimeout(sockData, list, 1000, 0)) > 0) {
         list[i] = 0;
         cout<<list;
     }
 
     close(sockData);
-    if ((i = FtpConnection::receiveTimeout(socket, list, 999, 0)) != 1)
-    {
+
+    if ((i = FtpConnection::receiveTimeout(socket, list, 999, 0)) != 1) {
         list[i] = 0;
         cout<<list;
     }
@@ -270,59 +224,64 @@ int FtpExecution::listFile(int socket, string& folderPath) {
 int FtpExecution::getFile(int socket, string& fileName)
 {
     FILE *file;
+
     int sockData = connectPassive(socket);
     char *list = new char[1000];
     int i;
-    string newFile;
+
     memset(list, 0, 1000);
     string _cmd = FTP_COMMAND_GET+ " " + fileName + "\r\n";
     FtpConnection::sendCommand(socket, _cmd);
 
-    if ((i = FtpConnection::receiveTimeout(socket, list, 999, 0)) != 1)
-    {
+    if ((i = FtpConnection::receiveTimeout(socket, list, 999, 0)) != 1) {
         list[i] = 0;
         cout<<list;
+        string str = list;
+        if(str.substr(0,3) == "550")
+            return -1;
     }
-    newFile  = FtpExecution::splitFileName(fileName);
+    else return -1;
+
     time_t begin = time(NULL);
     
     if (ascii)
-    {
-        file = fopen(newFile.c_str(), "a");
-    }
+        file = fopen(fileName.c_str(), "w");
     else
-    {
-        file = fopen(newFile.c_str(), "ab");
-    }
-    if (file == NULL)
-    {
+        file = fopen(fileName.c_str(), "wb");
+    
+    if (file == NULL)   {
         cout<<STRING_FILE_FAILED<<endl;
         return -1;
     }
+    else    {
+        int k = 0;
+        while((i = FtpConnection::receiveTimeout(sockData, list, 999, 0)) > 0)  {
+            if (ascii)  {
+                for (int j = 0 ; j < i; j++)    {
+                    if (list[j] != '\r')
+                        putc (list[j], file);
+                    else                    
+                        k = k + 1;
+                }
+            }
+            else
+                fwrite(list, sizeof(char), i, file);
+        }
 
-    cout<<"\nDownloading ...\n";
-    while((i = FtpConnection::receiveTimeout(sockData, list, 999, 0)) > 0)
-    {
-        if (ascii)
-        {
-            for (int j = 0 ; j < i; j++) if (list[j] != '\r')
-                putc (list[j], file);
+        if(ascii && k > 0) {
+            cout<<"WARNING! "<< k <<" bare linefeeds received in ASCII mode"<<endl;
+            cout<<"File may not have transferred correctly."<<endl;
         }
-        else
-        {
-            fwrite(list, sizeof(char), i, file);
-        }
+
+        close(sockData);
+        double t = difftime ( time(NULL), begin);
+        cout<<"Time to receive: "<<t<<endl;
     }
-
-    close(sockData);
+    
     fclose(file);
 
-    double t = difftime ( time(NULL), begin);
-    printf("\nTime: %f\n", t);
-
     memset(list, 0, 999);
-    if ((i = FtpConnection::receiveTimeout(socket, list, 256, 0)) != 1)
-    {
+    if ((i = FtpConnection::receiveTimeout(socket, list, 256, 0)) != 1){
         list[i] = 0;
         cout<<list;
     }
@@ -331,62 +290,71 @@ int FtpExecution::getFile(int socket, string& fileName)
 
 int FtpExecution::putFile(int socket, string& fileName)
 {
- /*   if(fileName != "")
-    {
-        if(fileName[0] != '/')
-        {
-            fileName = "/home/" + fileName;
-        }
+     FILE *file;
+    if (ascii)
+        file = fopen(fileName.c_str(), "r");
+    else
+        file = fopen(fileName.c_str(), "rb");
+
+    if (file == NULL)   {
+        cout<<STRING_FILE_FAILED<<endl;
+        return -1;
     }
-*/
+     
     int sockData = connectPassive(socket);
-    //cout<<"\nsock = "<<sockData<<endl;
 
     char *list = new char[1001];
     int i;
 
     string cmd = FTP_COMMAND_PUT + " " + fileName + "\r\n";
-    //char *cmd = new char[256];
-    //sprintf(cmd, "STOR %s\r\n", fileName.c_str());
     FtpConnection::sendCommand(socket, cmd);
 
     time_t begin = time(NULL);
     memset(list, 0, 1000);
-    if ((i = FtpConnection::receiveTimeout(socket, list, 256, 0)) != 1)
-    {
+    if ((i = FtpConnection::receiveTimeout(socket, list, 256, 0)) != 1) {
         list[i] = 0;
         cout<<list;
-    }
-
-    FILE *file;
-    if (ascii)
-    {
-        file = fopen(fileName.c_str(), "r");
+        string str = list;
+        if(str.substr(0,3) == "550")
+            return -1;
     }
     else
-    {
-        file = fopen(fileName.c_str(), "rb");
-    }
+        return -1;
 
-    //Envoyer le fichier
-    printf("\nUploading ...\n");
-    while(!feof(file))
-    {
+    while(!feof(file))  {
         i=sizeof(char) * fread(list, sizeof(char), 1000, file);
         FtpConnection::sendTimeout(sockData, list, i, 0);
     }
 
     close(sockData);
-    fclose(file);
     double t = difftime ( time(NULL), begin);
-    printf("\nTime: %f\n", t);
-
+    cout<<"Time to send: "<<t<<endl;
+    
+    fclose(file);
     memset(list, 0, 1000);
-    if ((i = FtpConnection::receiveTimeout(socket, list, 256, 0)) != 1)
-    {
+    if ((i = FtpConnection::receiveTimeout(socket, list, 256, 0)) != 1){
         list[i] = 0;
         cout<<list;
     }
+    
+    return 0;
+}
+
+int FtpExecution::toBinary(int socket, bool isBinary)
+{
+    ascii = !isBinary;
+    string _buffer;
+    string cmd;
+    
+    if (isBinary)
+        cmd = FTP_COMMAND_TYPE_BINARY + "\r\n";
+    else
+        cmd = FTP_COMMAND_TYPE_ASCII + "\r\n";
+
+    FtpConnection::sendCommand(socket, cmd);
+    
+    if(FtpConnection::receiveResponse(socket, _buffer) != -1)
+        cout<< _buffer;
     
     return 0;
 }
