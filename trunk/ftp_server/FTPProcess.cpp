@@ -59,6 +59,7 @@ void FTPProcess::closeConnection() {
 int FTPProcess::cmdCWD(string path) {
     string tmp;
     struct stat buffer;
+    char real[BUFFER];
 
     if (path.find('/') == 0) {
         tmp = path;
@@ -67,7 +68,9 @@ int FTPProcess::cmdCWD(string path) {
     }
 
     if (stat(tmp.c_str(), &buffer) == 0) {
-        dir = tmp;
+        memset(real, 0x00, sizeof(real));
+        realpath(tmp.c_str(), real);
+        dir.assign(real);
         if (dir.find_last_of('/') != dir.length()-1) {
             dir.append("/");
         }
@@ -136,6 +139,12 @@ int FTPProcess::cmdLIST(string path) {
     struct group   *grp;
     struct tm      *tm;
     char            datestring[256];
+    bool displayall = false;
+    char *ch;
+
+    if (path.compare("-a") == 0) {
+        displayall = true;
+    }
 
     if ((name_list = opendir(dir.c_str())) == NULL) {
         printf("Error:  Unable to open local directory.\n");
@@ -146,6 +155,10 @@ int FTPProcess::cmdLIST(string path) {
         while ((file_info = readdir(name_list)) != NULL) {
             tmp.assign(dir);
             tmp.append(file_info->d_name);
+            ch = strchr(file_info->d_name, '.');
+            if ((ch - file_info->d_name) == 0 && !displayall) {
+                continue;
+            }
 
             if (lstat(tmp.c_str(), &stat_buff) != 0) {
                 printf("Error unable to fetch stat information.\n");
