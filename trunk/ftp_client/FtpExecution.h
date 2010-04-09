@@ -16,6 +16,7 @@ using namespace std;
 
 const static string STRING_TIME_OUT = "Timeout.";
 const static string STRING_FILE_FAILED = "Failed to open file.";
+
  // FTP command standard string
 const static std::string FTP_COMMAND_CD = "CWD";
 const static std::string FTP_COMMAND_LS = "LIST";
@@ -27,6 +28,11 @@ const static std::string FTP_COMMAND_USER = "USER";
 const static std::string FTP_COMMAND_PASS = "PASS";
 const static std::string FTP_COMMAND_PASV = "PASV";
 const static std::string FTP_COMMAND_SYST = "SYST";
+const static std::string FTP_COMMAND_MKDIR = "MKD";
+const static std::string FTP_COMMAND_RMDIR = "RMD";
+const static std::string FTP_COMMAND_DEL = "DELE";
+const static std::string FTP_COMMAND_TYPE_BINARY = "TYPE I";
+const static std::string FTP_COMMAND_TYPE_ASCII = "TYPE A";
 
 // client defined command
 const static std::string CLIENT_FTP_COMMAND_OPEN = "OPEN";
@@ -53,18 +59,22 @@ public:
 
     int connectPassive(int sock);
 
-    int cd(int socket, string& folderPath);
+    int changeDirectory(int socket, string& folderPath);
 
     int listFile(int socket, string& pathName);
 
     int getFile(int socket, string& fileName);
-    //int receiveFile(int socket, const string& fileName);
 
     int putFile(int socket, string& fileName);
-    //int sendFile(int socket, const string& fileName);
 
-    //int makeclose();
-    //int quit();
+    int makeDirectory(int socket, string& pathName);
+
+    int removeDirectory(int socket, string& pathName);
+
+    int deleteFile(int socket, string& pathName);
+
+    int toBinary(int socket, bool isBinary);
+
     static string getCurrentDir()
     {
        char cwd[1024];
@@ -81,12 +91,46 @@ public:
         size_t found;
         found=path.find_last_of("/\\");
         return current + "/" + path.substr(found+1);
+    }
+    
+    static void getAddressPort(string buf, int port[], string& address)
+    {
+        char *ip = new char[15];
+	char *str_temps;
+        char* buffer;
+        strcpy(buffer,buf.c_str());
 
+        // get ip
+	str_temps = strchr(buffer, '(') + 1;
+	int nSplit = 0;
+	int i = 0;
+	memset(ip, 0, 15);
+        
+	while (nSplit < 4)
+	{
+            if (str_temps[i] == ',')
+            {
+                    nSplit ++;
+                    if (nSplit < 4) ip[i] = '.';
+            }
+            else ip[i] = str_temps[i];
+            i ++;
+	}
+
+	// get port
+	str_temps += i * sizeof(char);
+	char *str1 = strchr(str_temps, ',');
+	str1[0] = 0;
+	port[0] = atoi(str_temps);
+
+	str_temps = str1 + sizeof(char);
+	str1 = strchr(str_temps, ')');
+	str1[0] = 0;
+	port[1] = atoi(str_temps);
+        address = ip;
     }
     
 };
-
- 
     
 
 #endif	/* _FTPEXECUTION_H */

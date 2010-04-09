@@ -13,16 +13,11 @@
  */
 int main(int argc, char** argv) {
         FtpCommand* cmdline = new FtpCommand();
-	//FtpExecution* ftpExecution = new FtpExecution();
-        
 	cmdline->getArguments(argc, argv);
-
         do {
             cmdline->readCommandLine();
             cmdline->handleCommand();
 	} while (cmdline->isRunning());
-
-        // chua xu ly lenh cd
 
         return (EXIT_SUCCESS);
 }

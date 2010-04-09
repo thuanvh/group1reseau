@@ -11,12 +11,12 @@
 #include <string>
 using namespace std;
 
-// class contient des constantes des annonces et des commandlines
+// class of constants
 class FtpConstant{
     
 public:
 
-    // des code de l'annonce
+    // information code
     const static int CODE_LOGIN_REFUSED = 530;
     const static int CODE_TIME_OUT = 421;
     const static int CODE_UNKNOWN = 230;
@@ -29,15 +29,12 @@ public:
     const static int CODE_PORT_ACCEPT = 200;
     const static int CODE_FILE_SEND_OK = 226;
 
-   
-
     // connection status
     const static int FTP_NOT_CONNECT = 0;
     const static int FTP_CONNECTED = 1;
     
     const static int FTP_LOGIN = 0;
     const static int FTP_NOT_LOGIN = 1;
-
     
     // command code
     const static int FTP_CD = 2;
@@ -46,11 +43,15 @@ public:
     const static int FTP_PUT = 5;
     const static int FTP_QUIT = 6;
     const static int FTP_USER = 7;
+    const static int FTP_BINARY = 8;
+    const static int FTP_ASCII = 9;
+    const static int FTP_MKDIR = 10;
+    const static int FTP_RMDIR = 11;
+    const static int FTP_DEL = 12;
 
     const static int CLIENT_FTP_OPEN = 0;
     const static int CLIENT_FTP_CLOSE = 1;
 
-   
 };
 
 
