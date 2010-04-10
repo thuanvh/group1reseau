@@ -133,7 +133,5 @@ public:
     }
 };
 
-
-
 #endif	/* _FTPCONNECTION_H */
 
