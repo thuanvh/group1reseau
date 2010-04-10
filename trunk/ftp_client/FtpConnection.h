@@ -26,7 +26,8 @@ using namespace std;
 class FtpConnection{
     
 public:
-    
+
+    // send request to serveur with socket sock
     static int sendTimeout(int sock, void *buf, int len, int flags)
     {
         struct timeval tv;
@@ -42,10 +43,10 @@ public:
         if(!FD_ISSET(sock, &writefds))
                 return -1;
 
-        //Envoyer
         return send(sock, buf, len, flags);
     }
 
+    // send command to serveur
     static int sendCommand(int sock, string cmd)
     {
         struct timeval tv;
@@ -64,6 +65,7 @@ public:
         return send(sock, cmd.c_str(), cmd.size(), 0);
     }
 
+    // receive reponse from serveur
     static int receiveTimeout(int sock, char *buf, int len, int flags)
     {
         struct timeval tv;
@@ -82,6 +84,7 @@ public:
         return recv(sock, buf, len, flags);
     }
 
+    // receive reponse from serveur
     static int receiveResponse(int sock, string& contenu)
     {
         struct timeval tv;
@@ -107,30 +110,7 @@ public:
         return _recv;
     }
 
-    static int receiveLargeResponse(int sock, string& contenu)
-    {
-        struct timeval tv;
-        fd_set writefds;
-
-        tv.tv_sec = 20;
-        tv.tv_usec = 0;
-
-        FD_ZERO(&writefds);
-        FD_SET(sock, &writefds);
-        select(sock+1, NULL, &writefds, NULL, &tv);
-
-        if(!FD_ISSET(sock, &writefds))
-                return -1;
-
-        char _buf[1000];
-        memset(_buf, 0, 1000);
-        int _len = 999;
-        int _flags = 0;
-        
-        int _recv = recv(sock, _buf, _len, _flags);
-        contenu = _buf;
-        return _recv;
-    }
+    
 };
 
 #endif	/* _FTPCONNECTION_H */

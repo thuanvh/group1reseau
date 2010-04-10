@@ -14,6 +14,7 @@ using namespace std;
 #ifndef _FTPEXECUTION_H
 #define	_FTPEXECUTION_H
 
+// FTP information: error and warning
 const static string STRING_TIME_OUT = "Timeout.";
 const static string STRING_FILE_FAILED = "Failed to open file.";
 
@@ -41,58 +42,55 @@ const static std::string CLIENT_FTP_COMMAND_CLOSE = "CLOSE";
 class FtpExecution{
 public:
 
+    // mode ascii or binary to transfer file
     bool ascii;
     
     FtpExecution();
     virtual ~FtpExecution();
 
+    // open a connection
     int openConnection( const string& address, const string& port = "21");
+    // close a connection
     int closeConnection(int socket);
 
+    // send command to server
     int sendCommand(const string& code, const string& info);
-    //int receiveResponse(string& code, string& arg);
 
     void changeTransmissionMethod();
 
+    // username to login to server
     int user(int socket, const string& username);
+    // check password for login
     int login(int socket, const string& password);
 
+    // connect to passive mode
     int connectPassive(int sock);
 
+    // method cd change le folder current
     int changeDirectory(int socket, string& folderPath);
 
+    // method ls to get the list file from server
     int listFile(int socket, string& pathName);
 
+    // method get to get content of a file
     int getFile(int socket, string& fileName);
 
+    // method put to put file to server
     int putFile(int socket, string& fileName);
 
+    // create a folder on server
     int makeDirectory(int socket, string& pathName);
 
+    // remove a folder on server
     int removeDirectory(int socket, string& pathName);
 
+    // delete a file on server
     int deleteFile(int socket, string& pathName);
 
+    // change to binary mode ou ascii mode
     int toBinary(int socket, bool isBinary);
-
-    static string getCurrentDir()
-    {
-       char cwd[1024];
-       if (getcwd(cwd, sizeof(cwd)) != NULL)
-           return cwd;
-       else
-           perror("getcwd() error");
-       return "";
-    }
-
-    static string splitFileName(const string& path)
-    {
-        string current = getCurrentDir();
-        size_t found;
-        found=path.find_last_of("/\\");
-        return current + "/" + path.substr(found+1);
-    }
     
+    // get ip and port of reponse from server
     static void getAddressPort(string buf, int port[], string& address)
     {
         char *ip = new char[15];
