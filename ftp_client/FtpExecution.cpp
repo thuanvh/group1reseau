@@ -260,7 +260,7 @@ int FtpExecution::getFile(int socket, string& fileName)
                 for (int j = 0 ; j < i; j++)    {
                     if (list[j] != '\r')
                         putc (list[j], file);
-                    else                    
+                    if (list[j] == '\n')
                         k = k + 1;
                 }
             }
