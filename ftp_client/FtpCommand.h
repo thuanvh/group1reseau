@@ -63,19 +63,29 @@ public:
     FtpCommand();
     virtual ~FtpCommand();
 
+    // get and parse the arguments
     int getArguments(int argc, char* argv[]);
+    // read the command which is taped by user
     void readCommandLine();
+
+    // chose the command to run a method
     void handleCommand();
 
+    // get name of command
     string& getCommandCode();
+    // get info (argument) of command
     string& getCommandInfo();
 
+    // get port and host of command open
     string& getHost();
     string& getPort();
 
+    // check status of open or non
     bool isRunning();
+    // check status of login or non
     bool isLogin();
 
+    // get code of a command
     static int getIntCommandCode(const string& command_code){
         int code = -1;
         
