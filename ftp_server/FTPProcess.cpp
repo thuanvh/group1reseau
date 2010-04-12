@@ -82,124 +82,58 @@ int FTPProcess::cmdCWD(string path) {
     return 1;
 }
 
-int FTPProcess::cmdNLST(string path) {
-    int slash_flag = NO;         /*  If the -F flag is set       */
-    char data[BUFFER];
-    DIR *name_list; /*  File handle for temp file   */
-    struct dirent *file_info; /*  Local files in the directory*/
-    struct stat stat_buff; /*  File info (is it a dir?)    */
-    string tmp;
+int FTPProcess::cmdLIST(string path) {
+    string cmd;
+    FILE *pipe;
+    char tmp[BUFFER];
+    int i;
+    string str;
+    size_t b,e,l;
+    bool con = true, addhome = true;
 
-    if (path.length() > 0 && strcmp(path.c_str(), "-F") == 0) {
-        slash_flag = YES;
-    }
-
-    if ((name_list = opendir(dir.c_str())) == NULL) {
-        printf("Error:  Unable to open local directory.\n");
-        send(sid, NO_SUCH_FILE, strlen(NO_SUCH_FILE), 0);
+    if ((l = path.length()) == 0) {
+        cmd = "ls -l " + dir;
     } else {
-
-        while ((file_info = readdir(name_list)) != NULL) {
-            tmp.assign(dir);
-            tmp.append(file_info->d_name);
-
-            if (lstat(tmp.c_str(), &stat_buff) != 0) {
-                printf("Error unable to fetch stat information.\n");
+        cmd = "ls -l ";
+        b = 0;
+        while(con) {
+            e = path.find(" ");
+            if (e == string::npos) {
+                con = false;
+                e = b-1;
+            }
+            str = path.substr(b, l - e - 1);
+            b = e + 1;
+            if (str.find('-') == 0) {
+                cmd.append(str + " ");
+            } else if (str.find('/') == 0) {
+                addhome = false;
+                cmd.append(str + " ");
             } else {
-
-                memset(data, 0x00, sizeof(data));
-                if (!S_ISDIR(stat_buff.st_mode)) {
-                    sprintf(data, "%s\r\n", file_info->d_name);
-                    send(sid, data, strlen(data), 0);
-
-                } else if ((strcmp(file_info->d_name, ".") != 0) &&
-                        (strcmp(file_info->d_name, "..") != 0)) {
-                    if (slash_flag = YES) {
-                        sprintf(data, "%s/\r\n", file_info->d_name);
-                    } else {
-                        sprintf(data, "%s\r\n", file_info->d_name);
-                    }
-                    send(sid, data, strlen(data), 0);
-                }
-
+                addhome = false;
+                cmd.append(dir + str + " ");
             }
         }
-        closedir(name_list);
-    }
-    return 1;
-}
-
-int FTPProcess::cmdLIST(string path) {
-    char data[BUFFER];
-    DIR *name_list; /*  File handle for temp file   */
-    struct dirent *file_info; /*  Local files in the directory*/
-    struct stat stat_buff; /*  File info (is it a dir?)    */
-    string tmp;
-    struct passwd  *pwd;
-    struct group   *grp;
-    struct tm      *tm;
-    char            datestring[256];
-    bool displayall = false;
-    char *ch;
-
-    if (path.compare("-a") == 0) {
-        displayall = true;
+        if (addhome) cmd.append(dir);
     }
 
-    if ((name_list = opendir(dir.c_str())) == NULL) {
-        printf("Error:  Unable to open local directory.\n");
+    pipe = popen(cmd.c_str(), "r" );
+    if (pipe == NULL ) {
         send(sid, NO_SUCH_FILE, strlen(NO_SUCH_FILE), 0);
         return -1;
-    } else {
-
-        while ((file_info = readdir(name_list)) != NULL) {
-            tmp.assign(dir);
-            tmp.append(file_info->d_name);
-            ch = strchr(file_info->d_name, '.');
-            if ((ch - file_info->d_name) == 0 && !displayall) {
-                continue;
-            }
-
-            if (lstat(tmp.c_str(), &stat_buff) != 0) {
-                printf("Error unable to fetch stat information.\n");
-            } else {
-
-                memset(data, 0x00, sizeof(data));
-                if (!S_ISDIR(stat_buff.st_mode)) {
-                    data[0] = '-';
-                } else if ((strcmp(file_info->d_name, ".") != 0) &&
-                        (strcmp(file_info->d_name, "..") != 0)) {
-                    data[0] = 'd';
-                } else {
-                    continue;
-                }
-                // permission
-                sperm(&data[1], stat_buff.st_mode);
-                sprintf(&data[strlen(data)], "%3d", stat_buff.st_nlink);
-
-                if ((pwd = getpwuid(stat_buff.st_uid)) != NULL)
-                    sprintf(&data[strlen(data)], " %-8.8s", pwd->pw_name);
-                else
-                    sprintf(&data[strlen(data)], " %-8d", stat_buff.st_uid);
-
-                if ((grp = getgrgid(stat_buff.st_gid)) != NULL)
-                    sprintf(&data[strlen(data)], " %-8.8s", grp->gr_name);
-                else
-                    sprintf(&data[strlen(data)], " %-8d", stat_buff.st_gid);
-
-                sprintf(&data[strlen(data)], " %9jd", (intmax_t)stat_buff.st_size);
-
-                tm = localtime(&stat_buff.st_mtime);
-
-                strftime(datestring, sizeof(datestring), "%Y-%m-%d %H:%M", tm);
-
-                sprintf(&data[strlen(data)], " %s %s\r\n", datestring, file_info->d_name);
-
-                send(sid, data, strlen(data), 0);
-            }
-        }
-        closedir(name_list);
     }
+
+    while(!feof(pipe) ) {
+        if( fgets( tmp, 256, pipe ) != NULL ) {
+            i = strlen(tmp);
+            tmp[i-1] = '\r';
+            tmp[i] = '\n';
+            tmp[i+1] = 0x00;
+            send(sid, tmp, strlen(tmp), 0);
+        }
+    }
+    pclose(pipe);
+
     return 1;
 }
 
@@ -430,42 +364,4 @@ bool FTPProcess::isAscii() const {
 }
 bool FTPProcess::isPasv() const {
     return pasv;
-}
-
-char* FTPProcess::sperm(char* buff, __mode_t mode) {
-    int i = 0;
-    if (buff != NULL) {
-        // user permission
-        if ((mode & S_IRUSR) == S_IRUSR) buff[i] = 'r';
-        else buff[i] = '-';
-        i++;
-        if ((mode & S_IWUSR) == S_IWUSR) buff[i] = 'w';
-        else buff[i] = '-';
-        i++;
-        if ((mode & S_IXUSR) == S_IXUSR) buff[i] = 'x';
-        else buff[i] = '-';
-        i++;
-        // groupe permission
-        if ((mode & S_IRGRP) == S_IRGRP) buff[i] = 'r';
-        else buff[i] = '-';
-        i++;
-        if ((mode & S_IWGRP) == S_IWGRP) buff[i] = 'w';
-        else buff[i] = '-';
-        i++;
-        if ((mode & S_IXGRP) == S_IXGRP) buff[i] = 'x';
-        else buff[i] = '-';
-        i++;
-        // other permission
-        if ((mode & S_IROTH) == S_IROTH) buff[i] = 'r';
-        else buff[i] = '-';
-        i++;
-        if ((mode & S_IWOTH) == S_IWOTH) buff[i] = 'w';
-        else buff[i] = '-';
-        i++;
-        if ((mode & S_IXOTH) == S_IXOTH) buff[i] = 'x';
-        else buff[i] = '-';
-        i++;
-        buff[i] = 0x00;
-    }
-    return buff;
 }

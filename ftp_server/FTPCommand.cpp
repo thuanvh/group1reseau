@@ -51,12 +51,8 @@ CommandType FTPCommand::getCommandType(string name) {
         return TYPE;
     } else if (strcasecmp(name.c_str(), "MODE") == 0) {
         return MODE;
-    } else if (strcasecmp(name.c_str(), "NLST") == 0) {
-        return NLST;
     } else if (strcasecmp(name.c_str(), "RETR") == 0) {
         return RETR;
-    } else if (strcasecmp(name.c_str(), "NOOP") == 0) {
-        return NOOP;
     } else if (strcasecmp(name.c_str(), "STOR") == 0) {
         return STOR;
     } else if (strcasecmp(name.c_str(), "USER") == 0) {

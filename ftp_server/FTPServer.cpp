@@ -127,21 +127,6 @@ void* FTPServer::handle(void* parametres) {
             case MODE:
                 send(socket_id, MODE_RESPONSE, strlen(MODE_RESPONSE), 0);
                 break;
-            case NLST:
-                if (!pro.isPasv()) {
-                    if (pro.createConnection() == -1) {
-                        send(socket_id, DATA_CONNECT_FAIL, strlen(DATA_CONNECT_FAIL), 0);
-                        break;
-                    }
-                }
-                memset(data, 0x00, sizeof(data));
-                sprintf(data, "%s.\r\n",
-                        READY_FOR_NLST);
-                send(socket_id, data, strlen(data), 0);
-                pro.cmdNLST((msgs.size()==2)?msgs[1]:"");
-                send(socket_id, TRANSFER_COMPLETE, strlen(TRANSFER_COMPLETE), 0);
-                pro.closeConnection();
-                break;
             case RETR:
                 if (!pro.isPasv()) {
                     if (pro.createConnection() == -1) {
@@ -165,9 +150,6 @@ void* FTPServer::handle(void* parametres) {
                 }
                 pro.closeConnection();
                 break;
-            case NOOP:
-                send(socket_id, NOOP_RESPONSE, strlen(NOOP_RESPONSE), 0);
-                return NULL;
             case STOR:
                 if (!pro.isPasv()) {
                     if (pro.createConnection() == -1) {

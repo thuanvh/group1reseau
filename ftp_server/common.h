@@ -63,7 +63,7 @@ using namespace std;
 #define SERVER_TYPE             "215 UNIX Type: L8\r\n"
 
 /*  Des commandes FTP supportees par ce serveur.     */
-enum _CommandType { ERROR, TYPE, MODE, NLST, RETR, NOOP, STOR,
+enum _CommandType { ERROR, TYPE, MODE, RETR, STOR,
 		    USER, PASS, QUIT, PWD, CWD, PORT, PASV, SYST, LIST };
 typedef enum _CommandType CommandType;
 

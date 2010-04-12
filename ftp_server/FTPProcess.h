@@ -19,7 +19,6 @@ public:
     int getPort() const;
     int setInfo(string info);
     void closeConnection();
-    int cmdNLST(string path);
     int cmdLIST(string path);
     int cmdRETR(string path);
     int cmdSTOR(string path);
@@ -39,8 +38,6 @@ private:
     bool pasv, ascii;
     in_addr_t client;
     string dir;
-
-    char* sperm(char *buff, __mode_t mode);
 };
 
 #endif	/* _FTPPROCESS_H */
